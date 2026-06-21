@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediQueue — Sistem Simulasi Antrian Rumah Sakit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy-deep:#060c1f;
+  --navy-base:#0b1530;
+  --navy-panel:#101c40;
+  --navy-line:#22305c;
+  --ice:#eef2ff;
+  --ice-dim:#9fadd9;
+  --gold:#d4af6a;
+  --teal:#4fd6c0;
+  --danger:#ff6b6b;
+  --warn:#f5b942;
+  --ok:#5bd17e;
+  --radius:14px;
+  --shadow:0 20px 50px -20px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Space Grotesk',sans-serif;
+  background:
+    radial-gradient(ellipse 900px 500px at 12% -10%, rgba(79,214,192,.10), transparent 60%),
+    radial-gradient(ellipse 700px 500px at 110% 10%, rgba(212,175,106,.08), transparent 55%),
+    var(--navy-deep);
+  color:var(--ice);
+  min-height:100vh;
+  letter-spacing:.1px;
+}
+::selection{background:var(--gold);color:var(--navy-deep);}
+h1,h2,h3,.display{font-family:'Fraunces',serif;}
+.mono{font-family:'JetBrains Mono',monospace;}
+
+/* ===== Top bar ===== */
+.topbar{
+  position:sticky;top:0;z-index:50;
+  background:rgba(6,12,31,.85);
+  backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--navy-line);
+}
+.topbar-inner{
+  max-width:1280px;margin:0 auto;padding:18px 32px;
+  display:flex;align-items:center;justify-content:space-between;gap:24px;
+}
+.brand{display:flex;align-items:center;gap:12px;}
+.brand-mark{
+  width:40px;height:40px;border-radius:10px;
+  background:linear-gradient(145deg,var(--teal),#2a8f80);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Fraunces',serif;font-weight:700;color:var(--navy-deep);font-size:18px;
+  box-shadow:0 8px 20px -6px rgba(79,214,192,.5);
+}
+.brand-text h1{font-size:19px;font-weight:600;letter-spacing:.3px;}
+.brand-text span{font-size:11px;color:var(--ice-dim);font-family:'JetBrains Mono',monospace;letter-spacing:.5px;text-transform:uppercase;}
+
+nav{display:flex;gap:4px;background:var(--navy-panel);padding:5px;border-radius:30px;border:1px solid var(--navy-line);}
+nav button{
+  appearance:none;border:none;background:transparent;color:var(--ice-dim);
+  padding:9px 18px;border-radius:30px;font-family:'Space Grotesk',sans-serif;font-size:13.5px;font-weight:600;
+  cursor:pointer;transition:.25s;white-space:nowrap;
+}
+nav button.active{background:var(--ice);color:var(--navy-deep);}
+nav button:not(.active):hover{color:var(--ice);}
+
+.clock{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ice-dim);text-align:right;}
+.clock b{color:var(--gold);display:block;font-size:14px;}
+
+/* ===== Layout ===== */
+main{max-width:1280px;margin:0 auto;padding:40px 32px 100px;}
+.view{display:none;animation:fade .4s ease;}
+.view.active{display:block;}
+@keyframes fade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+.page-head{margin-bottom:32px;}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:11.5px;letter-spacing:2px;text-transform:uppercase;color:var(--teal);margin-bottom:8px;}
+.page-head h2{font-size:32px;font-weight:600;}
+.page-head p{color:var(--ice-dim);margin-top:6px;font-size:14.5px;max-width:560px;}
+
+/* ===== Cards ===== */
+.card{
+  background:linear-gradient(165deg,var(--navy-panel),rgba(16,28,64,.5));
+  border:1px solid var(--navy-line);border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+
+/* Dashboard stats */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:32px;}
+.stat{padding:24px;position:relative;overflow:hidden;}
+.stat::before{content:"";position:absolute;top:0;left:0;width:4px;height:100%;background:var(--accent,var(--teal));}
+.stat .label{font-size:12px;color:var(--ice-dim);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;}
+.stat .value{font-family:'Fraunces',serif;font-size:42px;font-weight:600;line-height:1;}
+.stat .sub{font-size:12.5px;color:var(--ice-dim);margin-top:10px;}
+.stat.teal{--accent:var(--teal);}
+.stat.gold{--accent:var(--gold);}
+.stat.danger{--accent:var(--danger);}
+.stat.ok{--accent:var(--ok);}
+
+.dash-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;}
+@media(max-width:900px){.dash-grid{grid-template-columns:1fr;}.stat-grid{grid-template-columns:repeat(2,1fr);}}
+
+.panel{padding:26px;}
+.panel h3{font-size:16px;font-weight:600;margin-bottom:18px;display:flex;align-items:center;gap:8px;}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 4px rgba(79,214,192,.18);}
+
+.mini-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--navy-line);font-size:13.5px;}
+.mini-row:last-child{border:none;}
+.tag{font-size:10.5px;font-family:'JetBrains Mono',monospace;padding:3px 9px;border-radius:20px;letter-spacing:.5px;font-weight:600;}
+.tag.darurat{background:rgba(255,107,107,.15);color:var(--danger);border:1px solid rgba(255,107,107,.3);}
+.tag.prioritas{background:rgba(245,185,66,.15);color:var(--warn);border:1px solid rgba(245,185,66,.3);}
+.tag.normal{background:rgba(79,214,192,.13);color:var(--teal);border:1px solid rgba(79,214,192,.3);}
+.tag.selesai{background:rgba(91,209,126,.15);color:var(--ok);border:1px solid rgba(91,209,126,.3);}
+
+/* ===== Forms ===== */
+.form-card{padding:32px;max-width:640px;margin:0 auto;}
+.field{margin-bottom:20px;}
+.field label{display:block;font-size:12.5px;font-family:'JetBrains Mono',monospace;color:var(--ice-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:.7px;}
+.field input,.field select,.field textarea{
+  width:100%;background:var(--navy-base);border:1px solid var(--navy-line);border-radius:9px;
+  padding:13px 14px;color:var(--ice);font-family:'Space Grotesk',sans-serif;font-size:14.5px;
+  transition:.2s;
+}
+.field textarea{resize:vertical;min-height:80px;}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(79,214,192,.15);}
+.cat-options{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.cat-opt{
+  border:1px solid var(--navy-line);border-radius:9px;padding:13px 10px;text-align:center;cursor:pointer;
+  font-size:13px;font-weight:600;transition:.2s;background:var(--navy-base);
+}
+.cat-opt[data-cat="Normal"].sel{border-color:var(--teal);background:rgba(79,214,192,.12);color:var(--teal);}
+.cat-opt[data-cat="Prioritas"].sel{border-color:var(--warn);background:rgba(245,185,66,.12);color:var(--warn);}
+.cat-opt[data-cat="Darurat"].sel{border-color:var(--danger);background:rgba(255,107,107,.12);color:var(--danger);}
+
+.btn{
+  appearance:none;border:none;cursor:pointer;border-radius:9px;font-family:'Space Grotesk',sans-serif;
+  font-weight:600;font-size:14px;padding:14px 22px;transition:.2s;display:inline-flex;align-items:center;gap:8px;
+}
+.btn-primary{background:linear-gradient(135deg,var(--teal),#3aa896);color:var(--navy-deep);width:100%;justify-content:center;box-shadow:0 10px 25px -8px rgba(79,214,192,.45);}
+.btn-primary:hover{filter:brightness(1.08);transform:translateY(-1px);}
+.btn-ghost{background:transparent;border:1px solid var(--navy-line);color:var(--ice-dim);}
+.btn-ghost:hover{color:var(--ice);border-color:var(--ice-dim);}
+.btn-sm{padding:8px 14px;font-size:12.5px;border-radius:7px;}
+.btn-danger{background:linear-gradient(135deg,var(--danger),#c2453f);color:#fff;}
+.btn-amb{background:linear-gradient(135deg,#ff8a3d,#e0552a);color:#fff;}
+
+.note{font-size:12.5px;color:var(--ice-dim);margin-top:6px;line-height:1.6;padding:14px;background:rgba(255,255,255,.02);border-left:2px solid var(--teal);border-radius:6px;}
+
+/* ===== Table ===== */
+.table-wrap{overflow-x:auto;border-radius:var(--radius);}
+table{width:100%;border-collapse:collapse;min-width:680px;}
+thead th{
+  text-align:left;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;
+  color:var(--ice-dim);padding:16px 20px;border-bottom:1px solid var(--navy-line);background:rgba(255,255,255,.015);
+}
+tbody td{padding:16px 20px;border-bottom:1px solid var(--navy-line);font-size:14px;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:rgba(255,255,255,.02);}
+.no-cell{font-family:'JetBrains Mono',monospace;color:var(--gold);font-weight:600;}
+.status-pill{font-size:11.5px;padding:4px 10px;border-radius:20px;font-weight:600;}
+.status-pill.menunggu{background:rgba(159,173,217,.15);color:var(--ice-dim);}
+.status-pill.dilayani{background:rgba(79,214,192,.18);color:var(--teal);}
+.actions{display:flex;gap:8px;}
+
+.empty{padding:60px 20px;text-align:center;color:var(--ice-dim);}
+.empty .glyph{font-size:34px;margin-bottom:10px;opacity:.5;}
+
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:12px;}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--ice-dim);align-items:center;}
+.legend span{display:flex;align-items:center;gap:6px;}
+.legend i{width:8px;height:8px;border-radius:50%;}
+
+/* obat & telepon & ambulan extra */
+.split-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+@media(max-width:900px){.split-grid{grid-template-columns:1fr;}}
+.contact-item{display:flex;align-items:center;justify-content:space-between;padding:16px;border:1px solid var(--navy-line);border-radius:10px;margin-bottom:12px;background:var(--navy-base);}
+.contact-item .who{font-weight:600;font-size:14.5px;}
+.contact-item .role{font-size:12px;color:var(--ice-dim);margin-top:3px;}
+.contact-item a{color:var(--teal);font-family:'JetBrains Mono',monospace;font-size:13px;text-decoration:none;}
+.contact-item a:hover{text-decoration:underline;}
+
+.amb-status{display:flex;align-items:center;gap:12px;padding:18px;border-radius:10px;background:rgba(224,85,42,.08);border:1px solid rgba(224,85,42,.3);margin-bottom:18px;}
+.amb-status .pulse{width:12px;height:12px;border-radius:50%;background:#e0552a;box-shadow:0 0 0 0 rgba(224,85,42,.6);animation:pulse 1.6s infinite;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(224,85,42,.6);}70%{box-shadow:0 0 0 12px rgba(224,85,42,0);}100%{box-shadow:0 0 0 0 rgba(224,85,42,0);}}
+
+.toast-wrap{position:fixed;bottom:24px;right:24px;z-index:200;display:flex;flex-direction:column;gap:10px;}
+.toast{
+  background:var(--navy-panel);border:1px solid var(--navy-line);border-left:3px solid var(--teal);
+  padding:14px 18px;border-radius:10px;font-size:13.5px;box-shadow:var(--shadow);min-width:260px;
+  animation:slidein .35s ease;
+}
+@keyframes slidein{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
+
+footer{border-top:1px solid var(--navy-line);padding:28px 32px;text-align:center;color:var(--ice-dim);font-size:12.5px;}
+
+@media(max-width:760px){
+  .topbar-inner{flex-wrap:wrap;}
+  nav{overflow-x:auto;width:100%;}
+  .stat-grid{grid-template-columns:1fr 1fr;}
+  .page-head h2{font-size:26px;}
+}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-mark">M+</div>
+      <div class="brand-text">
+        <h1>MediQueue</h1>
+        <span>Queue &amp; Heap Engine</span>
+      </div>
+    </div>
+    <nav id="mainNav">
+      <button class="active" data-view="dashboard">Dashboard</button>
+      <button data-view="daftar">Pendaftaran</button>
+      <button data-view="antrian">Antrian</button>
+      <button data-view="obat">Apotek</button>
+      <button data-view="ambulan">Ambulan</button>
+      <button data-view="kontak">Kontak</button>
+      <button data-view="riwayat">Riwayat</button>
+    </nav>
+    <div class="clock"><b id="clockTime">--:--:--</b><span id="clockDate">-</span></div>
+  </div>
+</div>
+
+<main>
+
+  <!-- ===================== DASHBOARD ===================== -->
+  <section class="view active" id="view-dashboard">
+    <div class="page-head">
+      <div class="eyebrow">Ringkasan Operasional</div>
+      <h2>Dashboard Antrian</h2>
+      <p>Pemantauan real-time atas struktur data Queue (pasien normal) dan Heap (prioritas/darurat) rumah sakit.</p>
+    </div>
+
+    <div class="stat-grid">
+      <div class="card stat teal">
+        <div class="label">Pasien Menunggu</div>
+        <div class="value" id="statMenunggu">0</div>
+        <div class="sub">Total dalam Queue &amp; Heap</div>
+      </div>
+      <div class="card stat ok">
+        <div class="label">Sedang Dilayani</div>
+        <div class="value" id="statDilayani">0</div>
+        <div class="sub">Loket aktif saat ini</div>
+      </div>
+      <div class="card stat danger">
+        <div class="label">Prioritas Tinggi</div>
+        <div class="value" id="statPrioritas">0</div>
+        <div class="sub">Darurat + Prioritas (Heap)</div>
+      </div>
+      <div class="card stat gold">
+        <div class="label">Rata-rata Tunggu</div>
+        <div class="value" id="statRata">0<span style="font-size:18px;">m</span></div>
+        <div class="sub">Estimasi menit per pasien</div>
+      </div>
+    </div>
+
+    <div class="dash-grid">
+      <div class="card panel">
+        <h3><span class="dot"></span> Antrian Berikutnya (Top of Heap / Queue)</h3>
+        <div id="nextList"></div>
+      </div>
+      <div class="card panel">
+        <h3><span class="dot" style="background:var(--gold)"></span> Aktivitas Terbaru</h3>
+        <div id="activityList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PENDAFTARAN ===================== -->
+  <section class="view" id="view-daftar">
+    <div class="page-head">
+      <div class="eyebrow">Loket Pendaftaran</div>
+      <h2>Pendaftaran Pasien</h2>
+      <p>Pasien <b>Normal</b> otomatis dimasukkan ke struktur <i>Queue</i> (FIFO). Pasien <b>Prioritas</b> dan <b>Darurat</b> dimasukkan ke struktur <i>Heap</i> dan akan didahulukan.</p>
+    </div>
+
+    <div class="card form-card">
+      <div class="field">
+        <label>Nama Pasien</label>
+        <input type="text" id="fNama" placeholder="Contoh: Budi Santoso">
+      </div>
+      <div class="field">
+        <label>Umur</label>
+        <input type="number" id="fUmur" placeholder="Contoh: 34" min="0" max="120">
+      </div>
+      <div class="field">
+        <label>Keluhan</label>
+        <textarea id="fKeluhan" placeholder="Jelaskan keluhan pasien secara singkat..."></textarea>
+      </div>
+      <div class="field">
+        <label>Kategori</label>
+        <div class="cat-options" id="catOptions">
+          <div class="cat-opt sel" data-cat="Normal">Normal</div>
+          <div class="cat-opt" data-cat="Prioritas">Prioritas</div>
+          <div class="cat-opt" data-cat="Darurat">Darurat</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="daftarPasien()">Daftarkan &amp; Masuk Antrian</button>
+      <div class="note" id="formNote">Pasien akan dimasukkan ke <b>Queue</b> biasa (FIFO) karena kategori Normal.</div>
+    </div>
+  </section>
+
+  <!-- ===================== ANTRIAN ===================== -->
+  <section class="view" id="view-antrian">
+    <div class="page-head">
+      <div class="eyebrow">Ruang Tunggu</div>
+      <h2>Halaman Antrian</h2>
+      <p>Urutan pelayanan ditentukan oleh struktur Heap (Darurat &gt; Prioritas) lalu Queue (Normal, FIFO).</p>
+    </div>
+
+    <div class="toolbar">
+      <div class="legend">
+        <span><i style="background:var(--danger)"></i> Darurat</span>
+        <span><i style="background:var(--warn)"></i> Prioritas</span>
+        <span><i style="background:var(--teal)"></i> Normal</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="layaniBerikutnya()">▶ Layani Pasien Berikutnya</button>
+    </div>
+
+    <div class="card table-wrap">
+      <table>
+        <thead>
+          <tr><th>Nomor</th><th>Nama</th><th>Umur</th><th>Keluhan</th><th>Kategori</th><th>Status</th><th>Aksi</th></tr>
+        </thead>
+        <tbody id="antrianBody"></tbody>
+      </table>
+      <div class="empty" id="antrianEmpty" style="display:none;">
+        <div class="glyph">⌗</div>
+        Belum ada pasien dalam antrian.
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== APOTEK / OBAT ===================== -->
+  <section class="view" id="view-obat">
+    <div class="page-head">
+      <div class="eyebrow">Layanan Farmasi</div>
+      <h2>Antrian Pengambilan Obat</h2>
+      <p>Setelah pasien selesai diperiksa, ajukan nomor antrian apotek untuk pengambilan resep.</p>
+    </div>
+
+    <div class="split-grid" style="grid-template-columns: 1.6fr 1fr;">
+      <div class="card form-card" style="max-width:none;">
+        <h3 style="margin-bottom:16px;">Ajukan Antrian Obat</h3>
+        <div class="field">
+          <label>Pilih Pasien (sudah dilayani)</label>
+          <select id="obatPasienSelect"></select>
+        </div>
+        <div class="field">
+          <label>Nama Obat / Resep</label>
+          <input type="text" id="obatResep" placeholder="Contoh: Paracetamol, Amoxicillin">
+        </div>
+        <button class="btn btn-primary" onclick="ajukanObat()">Ambil Nomor Antrian Obat</button>
+      </div>
+
+      <div class="card panel">
+        <h3><span class="dot" style="background:var(--gold)"></span> Antrian Apotek Aktif</h3>
+        <div id="obatList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== AMBULAN ===================== -->
+  <section class="view" id="view-ambulan">
+    <div class="page-head">
+      <div class="eyebrow">Layanan Darurat</div>
+      <h2>Pemanggilan Ambulan</h2>
+      <p>Gunakan formulir ini untuk permintaan penjemputan ambulan segera. Permintaan akan diprioritaskan otomatis.</p>
+    </div>
+
+    <div class="split-grid">
+      <div class="card form-card" style="max-width:none;">
+        <div class="field">
+          <label>Nama Pemohon</label>
+          <input type="text" id="ambNama" placeholder="Nama lengkap">
+        </div>
+        <div class="field">
+          <label>Lokasi Penjemputan</label>
+          <input type="text" id="ambLokasi" placeholder="Alamat lengkap / patokan">
+        </div>
+        <div class="field">
+          <label>Nomor yang Bisa Dihubungi</label>
+          <input type="text" id="ambTelp" placeholder="08xxxxxxxxxx">
+        </div>
+        <div class="field">
+          <label>Kondisi Pasien</label>
+          <textarea id="ambKondisi" placeholder="Jelaskan kondisi singkat..."></textarea>
+        </div>
+        <button class="btn btn-amb" style="width:100%;justify-content:center;" onclick="panggilAmbulan()">🚑 Panggil Ambulan Sekarang</button>
+      </div>
+
+      <div class="card panel">
+        <h3><span class="dot" style="background:#e0552a"></span> Status Panggilan</h3>
+        <div id="ambStatusArea">
+          <div class="empty"><div class="glyph">🚑</div>Belum ada panggilan ambulan aktif.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== KONTAK ===================== -->
+  <section class="view" id="view-kontak">
+    <div class="page-head">
+      <div class="eyebrow">Hubungi Kami</div>
+      <h2>Fitur yang Bisa Dihubungi</h2>
+      <p>Kontak penting rumah sakit untuk situasi cepat dan informasi umum.</p>
+    </div>
+
+    <div class="split-grid">
+      <div class="card panel">
+        <h3>Kontak Layanan</h3>
+        <div class="contact-item">
+          <div><div class="who">IGD / Darurat</div><div class="role">Layanan 24 Jam</div></div>
+          <a href="tel:119">119</a>
+        </div>
+        <div class="contact-item">
+          <div><div class="who">Customer Service</div><div class="role">Informasi Umum</div></div>
+          <a href="tel:0221234567">(022) 123-4567</a>
+        </div>
+        <div class="contact-item">
+          <div><div class="who">Apotek</div><div class="role">Pengambilan Obat</div></div>
+          <a href="tel:0221234568">(022) 123-4568</a>
+        </div>
+        <div class="contact-item">
+          <div><div class="who">Ambulan</div><div class="role">Penjemputan Darurat</div></div>
+          <a href="tel:118">118</a>
+        </div>
+      </div>
+
+      <div class="card form-card" style="max-width:none;">
+        <h3 style="margin-bottom:16px;">Kirim Pesan</h3>
+        <div class="field"><label>Nama</label><input type="text" id="ctcNama" placeholder="Nama Anda"></div>
+        <div class="field"><label>Pesan</label><textarea id="ctcPesan" placeholder="Tuliskan pertanyaan atau keluhan..."></textarea></div>
+        <button class="btn btn-primary" onclick="kirimPesan()">Kirim Pesan</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== RIWAYAT ===================== -->
+  <section class="view" id="view-riwayat">
+    <div class="page-head">
+      <div class="eyebrow">Arsip Pelayanan</div>
+      <h2>Riwayat Pasien</h2>
+      <p>Daftar pasien yang telah selesai dilayani, lengkap dengan waktu tunggu aktual.</p>
+    </div>
+
+    <div class="toolbar">
+      <div class="legend">
+        <span><i style="background:var(--ok)"></i> Total selesai: <span id="riwayatCount">0</span> pasien</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="exportRiwayatPDF()">⬇ Export PDF</button>
+    </div>
+
+    <div class="card table-wrap">
+      <table>
+        <thead>
+          <tr><th>Nomor</th><th>Nama</th><th>Kategori</th><th>Waktu Daftar</th><th>Waktu Selesai</th><th>Lama Tunggu</th><th>Status</th></tr>
+        </thead>
+        <tbody id="riwayatBody"></tbody>
+      </table>
+      <div class="empty" id="riwayatEmpty" style="display:none;">
+        <div class="glyph">📋</div>
+        Belum ada riwayat pelayanan.
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>MediQueue — Simulasi Sistem Antrian Rumah Sakit · Struktur Data Queue &amp; Heap · Dibangun untuk keperluan edukasi
+  <div style="margin-top:10px;"><button class="btn btn-ghost btn-sm" onclick="resetData()">↺ Reset Semua Data</button></div>
+</footer>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+/* ====================== STATE & STRUKTUR DATA ====================== */
+let counter = 1;
+let activeService = null; // pasien yang sedang dilayani
+
+// QUEUE (FIFO) untuk pasien Normal
+const normalQueue = [];
+
+// HEAP (priority) untuk pasien Prioritas/Darurat
+// implementasi binary max-heap sederhana berdasarkan priorityScore
+class PriorityHeap {
+  constructor(){ this.data = []; }
+  priorityScore(p){ return p.kategori === 'Darurat' ? 2 : 1; }
+  push(item){
+    this.data.push(item);
+    let i = this.data.length - 1;
+    while(i > 0){
+      const parent = Math.floor((i-1)/2);
+      if(this.compare(this.data[i], this.data[parent]) > 0){
+        [this.data[i], this.data[parent]] = [this.data[parent], this.data[i]];
+        i = parent;
+      } else break;
+    }
+  }
+  compare(a,b){
+    const sa = this.priorityScore(a), sb = this.priorityScore(b);
+    if(sa !== sb) return sa - sb;
+    return b.id - a.id ? -1*(a.id - b.id) : 0; // FIFO tiebreak (older id first)
+  }
+  pop(){
+    if(this.data.length === 0) return null;
+    const top = this.data[0];
+    const last = this.data.pop();
+    if(this.data.length > 0){
+      this.data[0] = last;
+      let i = 0;
+      while(true){
+        let l = 2*i+1, r = 2*i+2, largest = i;
+        if(l < this.data.length && this.compare(this.data[l], this.data[largest]) > 0) largest = l;
+        if(r < this.data.length && this.compare(this.data[r], this.data[largest]) > 0) largest = r;
+        if(largest === i) break;
+        [this.data[i], this.data[largest]] = [this.data[largest], this.data[i]];
+        i = largest;
+      }
+    }
+    return top;
+  }
+  peek(){ return this.data.length ? this.data[0] : null; }
+  size(){ return this.data.length; }
+  toArraySorted(){
+    return [...this.data].sort((a,b)=>this.compare(b,a));
+  }
+}
+const priorityHeap = new PriorityHeap();
+
+const riwayat = [];       // pasien selesai
+const obatQueue = [];     // antrian apotek
+const ambulanCalls = [];  // panggilan ambulan
+let waitTimes = []; // dalam menit, untuk rata-rata
+
+let selectedCat = 'Normal';
+
+/* ====================== UTIL ====================== */
+function nomorAntrian(kategori){
+  const prefix = kategori === 'Darurat' ? 'D' : kategori === 'Prioritas' ? 'P' : 'A';
+  const n = String(counter++).padStart(3,'0');
+  return prefix + n;
+}
+function jamSekarang(){
+  const d = new Date();
+  return d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+function toast(msg){
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='.3s'; setTimeout(()=>el.remove(),300); }, 3200);
+}
+let activityLog = [];
+function logActivity(text){
+  activityLog.unshift({text, time: jamSekarang()});
+  activityLog = activityLog.slice(0,8);
+  renderActivity();
+}
+
+/* ====================== NAV ====================== */
+document.getElementById('mainNav').addEventListener('click', e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  document.querySelectorAll('#mainNav button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+btn.dataset.view).classList.add('active');
+  renderAll();
+});
+
+/* ====================== CLOCK ====================== */
+function updateClock(){
+  const d = new Date();
+  document.getElementById('clockTime').textContent = d.toLocaleTimeString('id-ID');
+  document.getElementById('clockDate').textContent = d.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+updateClock(); setInterval(updateClock,1000);
+
+/* ====================== PENDAFTARAN ====================== */
+document.getElementById('catOptions').addEventListener('click', e=>{
+  const opt = e.target.closest('.cat-opt');
+  if(!opt) return;
+  document.querySelectorAll('.cat-opt').forEach(o=>o.classList.remove('sel'));
+  opt.classList.add('sel');
+  selectedCat = opt.dataset.cat;
+  const note = document.getElementById('formNote');
+  if(selectedCat === 'Normal'){
+    note.innerHTML = 'Pasien akan dimasukkan ke <b>Queue</b> biasa (FIFO) karena kategori Normal.';
+  }else{
+    note.innerHTML = `Pasien akan dimasukkan ke <b>Heap</b> dan didahulukan karena kategori <b>${selectedCat}</b>.`;
+  }
+});
+
+function daftarPasien(){
+  const nama = document.getElementById('fNama').value.trim();
+  const umur = document.getElementById('fUmur').value.trim();
+  const keluhan = document.getElementById('fKeluhan').value.trim();
+
+  if(!nama || !umur || !keluhan){
+    toast('⚠ Lengkapi semua data pasien terlebih dahulu.');
+    return;
+  }
+
+  const pasien = {
+    id: counter,
+    nomor: nomorAntrian(selectedCat),
+    nama, umur, keluhan,
+    kategori: selectedCat,
+    status: 'Menunggu',
+    waktuDaftar: jamSekarang(),
+    timestamp: Date.now()
+  };
+
+  if(selectedCat === 'Normal'){
+    normalQueue.push(pasien);
+  } else {
+    priorityHeap.push(pasien);
+  }
+
+  logActivity(`${pasien.nomor} — ${nama} mendaftar (${selectedCat})`);
+  toast(`✓ ${nama} berhasil didaftarkan dengan nomor ${pasien.nomor}`);
+
+  document.getElementById('fNama').value='';
+  document.getElementById('fUmur').value='';
+  document.getElementById('fKeluhan').value='';
+  document.querySelectorAll('.cat-opt').forEach(o=>o.classList.remove('sel'));
+  document.querySelector('.cat-opt[data-cat="Normal"]').classList.add('sel');
+  selectedCat = 'Normal';
+  document.getElementById('formNote').innerHTML = 'Pasien akan dimasukkan ke <b>Queue</b> biasa (FIFO) karena kategori Normal.';
+
+  renderAll();
+}
+
+/* ====================== ANTRIAN LOGIC ====================== */
+function getAllWaiting(){
+  // urutan: heap (darurat>prioritas) lalu queue normal
+  return [...priorityHeap.toArraySorted(), ...normalQueue];
+}
+
+function layaniBerikutnya(){
+  let next = null;
+  if(priorityHeap.size() > 0){
+    next = priorityHeap.pop();
+  } else if(normalQueue.length > 0){
+    next = normalQueue.shift();
+  }
+  if(!next){
+    toast('Tidak ada pasien dalam antrian.');
+    return;
+  }
+  next.status = 'Dilayani';
+  activeService = next;
+  logActivity(`${next.nomor} — ${next.nama} mulai dilayani`);
+  toast(`▶ Memanggil ${next.nomor} — ${next.nama}`);
+  renderAll();
+}
+
+function selesaiLayani(id){
+  if(!activeService || activeService.id !== id) return;
+  const selesaiTime = jamSekarang();
+  const lamaMenit = Math.max(1, Math.round((Date.now() - activeService.timestamp)/1000/2)); // simulasi cepat
+  waitTimes.push(lamaMenit);
+  riwayat.unshift({...activeService, status:'Selesai', waktuSelesai: selesaiTime, lamaTunggu: lamaMenit+' mnt'});
+  logActivity(`${activeService.nomor} — ${activeService.nama} selesai dilayani`);
+  toast(`✓ ${activeService.nama} selesai dilayani`);
+  activeService = null;
+  renderAll();
+}
+
+function batalkanDariAntrian(id, source){
+  if(source === 'normal'){
+    const idx = normalQueue.findIndex(p=>p.id===id);
+    if(idx>-1) normalQueue.splice(idx,1);
+  } else {
+    const idx = priorityHeap.data.findIndex(p=>p.id===id);
+    if(idx>-1){
+      priorityHeap.data.splice(idx,1);
+      // rebuild heap order
+      const items = priorityHeap.data;
+      priorityHeap.data = [];
+      items.forEach(it=>priorityHeap.push(it));
+    }
+  }
+  toast('Pasien dibatalkan dari antrian.');
+  renderAll();
+}
+
+/* ====================== APOTEK ====================== */
+function ajukanObat(){
+  const sel = document.getElementById('obatPasienSelect');
+  const resep = document.getElementById('obatResep').value.trim();
+  if(!sel.value || !resep){
+    toast('⚠ Pilih pasien dan isi nama obat.');
+    return;
+  }
+  const pasienData = JSON.parse(sel.value);
+  const nomor = 'OB' + String(obatQueue.length+1).padStart(3,'0');
+  obatQueue.push({nomor, nama: pasienData.nama, resep, status:'Menunggu', waktu: jamSekarang()});
+  toast(`✓ Antrian obat ${nomor} dibuat untuk ${pasienData.nama}`);
+  document.getElementById('obatResep').value='';
+  renderAll();
+}
+function selesaiObat(nomor){
+  const item = obatQueue.find(o=>o.nomor===nomor);
+  if(item){ item.status='Selesai'; toast(`✓ Obat untuk ${item.nama} telah diserahkan`); }
+  renderAll();
+}
+
+/* ====================== AMBULAN ====================== */
+function panggilAmbulan(){
+  const nama = document.getElementById('ambNama').value.trim();
+  const lokasi = document.getElementById('ambLokasi').value.trim();
+  const telp = document.getElementById('ambTelp').value.trim();
+  const kondisi = document.getElementById('ambKondisi').value.trim();
+  if(!nama || !lokasi || !telp){
+    toast('⚠ Lengkapi nama, lokasi, dan nomor telepon.');
+    return;
+  }
+  const call = {
+    id: Date.now(), nama, lokasi, telp, kondisi: kondisi || '-',
+    waktu: jamSekarang(), status:'Dikirim'
+  };
+  ambulanCalls.unshift(call);
+  toast(`🚑 Panggilan ambulan untuk ${nama} telah dikirim ke tim medis`);
+  ['ambNama','ambLokasi','ambTelp','ambKondisi'].forEach(id=>document.getElementById(id).value='');
+  renderAll();
+  setTimeout(()=>{
+    call.status = 'Menuju Lokasi';
+    renderAll();
+    toast(`Ambulan sedang menuju lokasi ${call.lokasi}`);
+  }, 4000);
+}
+
+/* ====================== KONTAK ====================== */
+function kirimPesan(){
+  const nama = document.getElementById('ctcNama').value.trim();
+  const pesan = document.getElementById('ctcPesan').value.trim();
+  if(!nama || !pesan){ toast('⚠ Lengkapi nama dan pesan.'); return; }
+  toast(`✓ Pesan dari ${nama} telah terkirim ke layanan pelanggan`);
+  document.getElementById('ctcNama').value='';
+  document.getElementById('ctcPesan').value='';
+}
+
+/* ====================== RENDER ====================== */
+function renderAll(){
+  renderDashboard();
+  renderAntrian();
+  renderObat();
+  renderAmbulan();
+  renderRiwayat();
+}
+
+function renderDashboard(){
+  const waiting = getAllWaiting();
+  document.getElementById('statMenunggu').textContent = waiting.length;
+  document.getElementById('statDilayani').textContent = activeService ? 1 : 0;
+  document.getElementById('statPrioritas').textContent = priorityHeap.size();
+  const avg = waitTimes.length ? Math.round(waitTimes.reduce((a,b)=>a+b,0)/waitTimes.length) : 0;
+  document.getElementById('statRata').innerHTML = avg + '<span style="font-size:18px;">m</span>';
+
+  const nextList = document.getElementById('nextList');
+  nextList.innerHTML='';
+  const topItems = waiting.slice(0,5);
+  if(activeService){
+    nextList.innerHTML += `<div class="mini-row"><span><b>${activeService.nomor}</b> — ${activeService.nama}</span><span class="tag selesai">Dilayani</span></div>`;
+  }
+  if(topItems.length===0 && !activeService){
+    nextList.innerHTML = '<div class="empty" style="padding:30px 10px;">Tidak ada antrian.</div>';
+  } else {
+    topItems.forEach(p=>{
+      nextList.innerHTML += `<div class="mini-row"><span><b>${p.nomor}</b> — ${p.nama}</span><span class="tag ${p.kategori.toLowerCase()}">${p.kategori}</span></div>`;
+    });
+  }
+  renderActivity();
+}
+function renderActivity(){
+  const el = document.getElementById('activityList');
+  if(!el) return;
+  if(activityLog.length===0){ el.innerHTML='<div class="empty" style="padding:30px 10px;">Belum ada aktivitas.</div>'; return; }
+  el.innerHTML = activityLog.map(a=>`<div class="mini-row"><span>${a.text}</span><span class="mono" style="color:var(--ice-dim);font-size:11.5px;">${a.time}</span></div>`).join('');
+}
+
+function renderAntrian(){
+  const body = document.getElementById('antrianBody');
+  const waiting = getAllWaiting();
+  const empty = document.getElementById('antrianEmpty');
+  let rows = '';
+
+  if(activeService){
+    rows += `<tr>
+      <td class="no-cell">${activeService.nomor}</td>
+      <td>${activeService.nama}</td>
+      <td>${activeService.umur}</td>
+      <td>${activeService.keluhan}</td>
+      <td><span class="tag ${activeService.kategori.toLowerCase()}">${activeService.kategori}</span></td>
+      <td><span class="status-pill dilayani">Dilayani</span></td>
+      <td class="actions"><button class="btn btn-sm btn-primary" onclick="selesaiLayani(${activeService.id})">Selesai</button></td>
+    </tr>`;
+  }
+
+  waiting.forEach(p=>{
+    const source = p.kategori === 'Normal' ? 'normal' : 'heap';
+    rows += `<tr>
+      <td class="no-cell">${p.nomor}</td>
+      <td>${p.nama}</td>
+      <td>${p.umur}</td>
+      <td>${p.keluhan}</td>
+      <td><span class="tag ${p.kategori.toLowerCase()}">${p.kategori}</span></td>
+      <td><span class="status-pill menunggu">Menunggu</span></td>
+      <td class="actions"><button class="btn btn-sm btn-ghost" onclick="batalkanDariAntrian(${p.id},'${source}')">Batal</button></td>
+    </tr>`;
+  });
+
+  body.innerHTML = rows;
+  empty.style.display = (rows==='') ? 'block' : 'none';
+
+  // update obat select
+  const sel = document.getElementById('obatPasienSelect');
+  const doneList = riwayat;
+  sel.innerHTML = '<option value="">— Pilih pasien selesai diperiksa —</option>' +
+    doneList.map(p=>`<option value='${JSON.stringify({nama:p.nama}).replace(/'/g,"&#39;")}'>${p.nomor} — ${p.nama}</option>`).join('');
+}
+
+function renderObat(){
+  const el = document.getElementById('obatList');
+  if(obatQueue.length===0){ el.innerHTML='<div class="empty" style="padding:30px 10px;">Belum ada antrian obat.</div>'; return; }
+  el.innerHTML = obatQueue.slice().reverse().map(o=>`
+    <div class="mini-row">
+      <span><b>${o.nomor}</b> — ${o.nama}<br><span style="color:var(--ice-dim);font-size:12px;">${o.resep}</span></span>
+      <span style="display:flex;align-items:center;gap:8px;">
+        <span class="tag ${o.status==='Selesai'?'selesai':'normal'}">${o.status}</span>
+        ${o.status==='Menunggu' ? `<button class="btn btn-sm btn-ghost" onclick="selesaiObat('${o.nomor}')">Serahkan</button>` : ''}
+      </span>
+    </div>`).join('');
+}
+
+function renderAmbulan(){
+  const el = document.getElementById('ambStatusArea');
+  if(ambulanCalls.length===0){ el.innerHTML='<div class="empty"><div class="glyph">🚑</div>Belum ada panggilan ambulan aktif.</div>'; return; }
+  el.innerHTML = ambulanCalls.map(c=>`
+    <div class="amb-status">
+      <div class="pulse"></div>
+      <div>
+        <div style="font-weight:600;">${c.nama} — ${c.lokasi}</div>
+        <div style="font-size:12px;color:var(--ice-dim);margin-top:3px;">Telp: ${c.telp} · Kondisi: ${c.kondisi} · ${c.waktu}</div>
+        <div style="margin-top:6px;"><span class="tag ${c.status==='Menuju Lokasi'?'selesai':'darurat'}">${c.status}</span></div>
+      </div>
+    </div>`).join('');
+}
+
+function renderRiwayat(){
+  const body = document.getElementById('riwayatBody');
+  const empty = document.getElementById('riwayatEmpty');
+  const countEl = document.getElementById('riwayatCount');
+  if(countEl) countEl.textContent = riwayat.length;
+  if(riwayat.length===0){ body.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  body.innerHTML = riwayat.map(p=>`
+    <tr>
+      <td class="no-cell">${p.nomor}</td>
+      <td>${p.nama}</td>
+      <td><span class="tag ${p.kategori.toLowerCase()}">${p.kategori}</span></td>
+      <td class="mono" style="font-size:12.5px;">${p.waktuDaftar}</td>
+      <td class="mono" style="font-size:12.5px;">${p.waktuSelesai}</td>
+      <td>${p.lamaTunggu}</td>
+      <td><span class="status-pill dilayani">Selesai</span></td>
+    </tr>`).join('');
+}
+
+function exportRiwayatPDF(){
+  if(riwayat.length === 0){
+    toast('⚠ Belum ada riwayat untuk diekspor.');
+    return;
+  }
+  if(typeof window.jspdf === 'undefined'){
+    toast('⚠ Modul PDF belum termuat. Periksa koneksi internet lalu coba lagi.');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const now = new Date();
+  const tanggal = now.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const jam = now.toLocaleTimeString('id-ID');
+
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(16);
+  doc.setTextColor(11,21,48);
+  doc.text('MediQueue — Riwayat Pasien', 14, 18);
+
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text(`Dicetak pada ${tanggal}, pukul ${jam}`, 14, 25);
+  doc.text(`Total pasien selesai dilayani: ${riwayat.length}`, 14, 30);
+
+  const rows = riwayat.map(p => [
+    p.nomor, p.nama, p.kategori, p.waktuDaftar, p.waktuSelesai, p.lamaTunggu, 'Selesai'
+  ]);
+
+  doc.autoTable({
+    startY: 36,
+    head: [['Nomor','Nama','Kategori','Waktu Daftar','Waktu Selesai','Lama Tunggu','Status']],
+    body: rows,
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: [11,21,48], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [240,243,250] },
+    margin: { left: 14, right: 14 }
+  });
+
+  doc.save(`riwayat-pasien-${now.toISOString().slice(0,10)}.pdf`);
+  toast('✓ Riwayat berhasil diekspor ke PDF');
+}
+
+/* ====================== PENYIMPANAN (localStorage) ====================== */
+const STORAGE_KEY = 'mediqueue_state_v1';
+
+function saveState(){
+  const state = {
+    counter,
+    normalQueue,
+    heapData: priorityHeap.data,
+    riwayat,
+    obatQueue,
+    ambulanCalls,
+    waitTimes,
+    activityLog,
+    activeService
+  };
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }catch(e){
+    console.error('Gagal menyimpan data:', e);
+  }
+}
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    const state = JSON.parse(raw);
+    counter = state.counter || 1;
+    normalQueue.length = 0; normalQueue.push(...(state.normalQueue||[]));
+    priorityHeap.data = state.heapData || [];
+    riwayat.length = 0; riwayat.push(...(state.riwayat||[]));
+    obatQueue.length = 0; obatQueue.push(...(state.obatQueue||[]));
+    ambulanCalls.length = 0; ambulanCalls.push(...(state.ambulanCalls||[]));
+    waitTimes = state.waitTimes || [];
+    activityLog = state.activityLog || [];
+    activeService = state.activeService || null;
+    return true;
+  }catch(e){
+    console.error('Gagal memuat data tersimpan:', e);
+    return false;
+  }
+}
+
+function resetData(){
+  if(!confirm('Hapus semua data dan kembali ke data contoh awal?')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+}
+
+// Bungkus renderAll supaya setiap render otomatis menyimpan state terbaru
+const _originalRenderAll = renderAll;
+renderAll = function(){
+  _originalRenderAll();
+  saveState();
+};
+
+/* ====================== INIT (contoh data) ====================== */
+function seedDemo(){
+  selectedCat='Normal';
+  const samples = [
+    {nama:'Budi Santoso', umur:34, keluhan:'Demam ringan', kategori:'Normal'},
+    {nama:'Siti Aminah', umur:56, keluhan:'Nyeri dada hebat', kategori:'Darurat'},
+    {nama:'Andi Wijaya', umur:28, keluhan:'Patah tulang ringan', kategori:'Prioritas'},
+    {nama:'Rina Marlina', umur:41, keluhan:'Batuk pilek', kategori:'Normal'},
+  ];
+  samples.forEach(s=>{
+    const pasien = {
+      id: counter,
+      nomor: nomorAntrian(s.kategori),
+      nama:s.nama, umur:s.umur, keluhan:s.keluhan,
+      kategori:s.kategori, status:'Menunggu',
+      waktuDaftar: jamSekarang(), timestamp: Date.now()
+    };
+    if(s.kategori==='Normal') normalQueue.push(pasien); else priorityHeap.push(pasien);
+  });
+  logActivity('Sistem dimuat dengan data contoh');
+}
+const hasSaved = loadState();
+if(!hasSaved){
+  seedDemo();
+}else{
+  logActivity('Data tersimpan berhasil dimuat');
+}
+renderAll();
+</script>
+</body>
+</html>
